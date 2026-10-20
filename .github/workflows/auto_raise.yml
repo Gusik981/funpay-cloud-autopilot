@@ -1,0 +1,30 @@
+name: FunPay 24/7 Cloud Auto-Raise
+
+on:
+  schedule:
+    # Запуск каждые 25 минут (в облаке GitHub круглосуточно)
+    - cron: '*/25 * * * *'
+  workflow_dispatch:
+
+jobs:
+  auto-raise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Auto-Raise
+        env:
+          GOLDEN_KEY: ${{ secrets.GOLDEN_KEY }}
+        run: python runner.py
