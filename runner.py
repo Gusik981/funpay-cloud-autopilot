@@ -15,7 +15,7 @@ if not GOLDEN_KEY and os.path.exists('config.json'):
         GOLDEN_KEY = json.load(f).get('golden_key')
 
 if not GOLDEN_KEY:
-    print("ОШИБКА: GOLDEN_KEY не найден в переменных окружения или config.json!")
+    print("ОШИБКА: GOLDEN_KEY не найден!")
     sys.exit(1)
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
@@ -52,7 +52,7 @@ def main():
             user_id = app_data.get('userId')
             
         if not user_elem:
-            log("ОШИБКА: Не удалось войти по golden_key. Возможно, ключ устарел.")
+            log("ОШИБКА: Не удалось войти по golden_key.")
             sys.exit(1)
             
         username = user_elem.text.strip()
@@ -106,6 +106,9 @@ def main():
             
             h_post = headers.copy()
             h_post['Referer'] = trade_url
+            if csrf_token:
+                h_post['X-CSRF-Token'] = csrf_token
+            
             payload = {
                 'game_id': game_id,
                 'node_id': node_id,
@@ -114,21 +117,27 @@ def main():
             }
             
             res = session.post('https://funpay.com/lots/raise', data=payload, headers=h_post, timeout=15)
-            data = res.json()
             
-            if not data.get('error'):
-                log(f"[{idx}/{len(cats)}] ✔ УСПЕШНО ПОДНЯТО: {cat['name']}")
-                success_count += 1
-            else:
-                wait_sec = data.get('wait', 0)
-                log(f"[{idx}/{len(cats)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
+            if res.status_code == 200:
+                data = res.json()
+                if not data.get('error'):
+                    log(f"[{idx}/{len(cats)}] ✔ УСПЕШНО ПОДНЯТО: {cat['name']}")
+                    success_count += 1
+                else:
+                    wait_sec = data.get('wait', 0)
+                    log(f"[{idx}/{len(cats)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
+                    cooldown_count += 1
+            elif res.status_code == 428:
+                log(f"[{idx}/{len(cats)}] ⏳ {cat['name']}: Кулдаун активен (код 428)")
                 cooldown_count += 1
+            else:
+                log(f"[{idx}/{len(cats)}] Статус {res.status_code} для {cat['name']}")
         except Exception as e:
             log(f"[{idx}/{len(cats)}] Ошибка {cat['name']}: {e}")
         
-        time.sleep(random.uniform(0.6, 1.2))
+        time.sleep(random.uniform(1.0, 1.8))
 
-    log(f"=== ЗАВЕРШЕНО: Успешно поднято: {success_count} | На кулдауне: {cooldown_count} ===")
+    log(f"=== ЗАВЕРШЕНО: Успешно поднято: {success_count} | Ожидают кулдаун: {cooldown_count} ===")
 
 if __name__ == '__main__':
     main()
