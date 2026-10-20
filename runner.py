@@ -23,7 +23,7 @@ if not GOLDEN_KEY:
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
 
-# Максимальное время работы одного воркера (4 часа 45 минут), чтобы не словить лимит GitHub в 6 часов
+# 4 часа 45 минут
 MAX_RUN_SECONDS = 4 * 3600 + 45 * 60
 
 def log(msg):
@@ -33,7 +33,7 @@ def log(msg):
 def trigger_next_worker():
     """Запуск следующего воркера через GitHub API для бесконечной эстафеты"""
     if not GITHUB_TOKEN:
-        log("GITHUB_TOKEN отсутствует, полагаемся на cron-расписание.")
+        log("GITHUB_TOKEN отсутствует, полагаемся на cron.")
         return
     log("Передаем эстафету: запуск следующего облачного воркера...")
     try:
@@ -47,7 +47,7 @@ def trigger_next_worker():
         if res.status_code == 204:
             log("✔ Следующий облачный воркер успешно запущен в эстафете 24/7!")
         else:
-            log(f"Статус запуска воркера: {res.status_code}")
+            log(f"Статус вызова dispatch: {res.status_code} ({res.text[:100]})")
     except Exception as e:
         log(f"Ошибка передачи эстафеты: {e}")
 
@@ -66,6 +66,7 @@ class ImmortalFunPayBot:
         self.user_id = None
         self.username = None
         self.categories = []
+        self.last_categories_reload = 0
 
     def authenticate(self):
         log("Авторизация на FunPay...")
@@ -81,7 +82,7 @@ class ImmortalFunPayBot:
                 self.user_id = app_data.get('userId')
                 
             if not user_elem:
-                log("ОШИБКА: Не удалось войти по golden_key.")
+                log("ОШИБКА: Не удалось войти по golden_key. Возможно, ключ устарел.")
                 return False
                 
             self.username = user_elem.text.strip()
@@ -110,13 +111,18 @@ class ImmortalFunPayBot:
                     cats.append({'name': cat_name, 'href': cat_href, 'node_id': node_id})
             
             self.categories = cats
-            log(f"Категорий на аккаунте: {len(self.categories)}")
+            self.last_categories_reload = time.time()
+            log(f"Актуализировано категорий с товарами: {len(self.categories)}")
             return cats
         except Exception as e:
             log(f"Ошибка загрузки категорий: {e}")
-            return []
+            return self.categories
 
     def raise_all_lots(self):
+        # Перезагружаем категории раз в час (вдруг продавец добавил новый товар)
+        if (time.time() - self.last_categories_reload) > 3600 or not self.categories:
+            self.load_categories()
+
         log("--- СТАРТ ЦИКЛА ПОДНЯТИЯ ЛОТОВ ---")
         min_wait = 3600
         success_count = 0
@@ -155,26 +161,34 @@ class ImmortalFunPayBot:
                 res = self.session.post('https://funpay.com/lots/raise', data=payload, headers=h_post, timeout=15)
                 
                 if res.status_code == 200:
-                    data = res.json()
-                    if not data.get('error'):
-                        log(f"[{idx}/{len(self.categories)}] ✔ УСПЕШНО ПОДНЯТО: {cat['name']}")
-                        success_count += 1
-                    else:
-                        wait_sec = data.get('wait', 7200)
-                        if wait_sec < min_wait and wait_sec > 0:
-                            min_wait = wait_sec
-                        log(f"[{idx}/{len(self.categories)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
-                        cooldown_count += 1
+                    try:
+                        data = res.json()
+                        if not data.get('error'):
+                            log(f"[{idx}/{len(self.categories)}] ✔ УСПЕШНО ПОДНЯТО: {cat['name']}")
+                            success_count += 1
+                        else:
+                            wait_sec = data.get('wait', 7200)
+                            if wait_sec < min_wait and wait_sec > 0:
+                                min_wait = wait_sec
+                            log(f"[{idx}/{len(self.categories)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
+                            cooldown_count += 1
+                    except Exception:
+                        log(f"[{idx}/{len(self.categories)}] Ответ без JSON: {res.text[:60]}")
                 elif res.status_code == 428:
                     log(f"[{idx}/{len(self.categories)}] ⏳ {cat['name']}: Кулдаун активен (428)")
                     cooldown_count += 1
+                elif res.status_code == 401:
+                    log(f"[{idx}/{len(self.categories)}] Сессия истекла (401), переавторизация...")
+                    self.authenticate()
+                else:
+                    log(f"[{idx}/{len(self.categories)}] Статус {res.status_code} для {cat['name']}")
             except Exception as e:
                 log(f"[{idx}/{len(self.categories)}] Ошибка {cat['name']}: {e}")
             
             time.sleep(random.uniform(0.8, 1.4))
 
         next_wait = max(min_wait, 120)
-        log(f"ИТОГ КРУГА: Поднято: {success_count} | На кулдауне: {cooldown_count}. Следующее автоподнятие через ~{next_wait // 60} мин.")
+        log(f"ИТОГ КРУГА: Поднято: {success_count} | Ожидают: {cooldown_count}. Следующий круг через ~{next_wait // 60} мин.")
         return next_wait
 
     def ping_online(self):
@@ -194,19 +208,19 @@ class ImmortalFunPayBot:
         self.load_categories()
 
         while True:
-            # Проверка, не пора ли передать эстафету следующему воркеру
+            # Проверка передачи эстафеты (4 часа 45 минут)
             elapsed_total = time.time() - start_time
             if elapsed_total >= MAX_RUN_SECONDS:
-                log("Воркер отработал 4 часа 45 минут. Передаем эстафету новому воркеру...")
+                log("Воркер отработал 4ч 45м. Передаем эстафету следующему воркеру...")
                 trigger_next_worker()
-                time.sleep(30)
-                log("Завершение текущего воркера (следующий уже запущен).")
+                time.sleep(40)
+                log("Завершение текущей смены (следующий воркер подхвачен).")
                 break
 
             try:
                 wait_time = self.raise_all_lots()
                 
-                # Цикл ожидания с постоянным пингом каждые 90 секунд (вечный Онлайн)
+                # Цикл ожидания с пингом каждые 90 секунд (вечный Онлайн)
                 elapsed = 0
                 while elapsed < wait_time:
                     sleep_chunk = min(90, wait_time - elapsed)
@@ -216,7 +230,6 @@ class ImmortalFunPayBot:
                     remaining = (wait_time - elapsed) // 60
                     log(f"Статус: ОНЛАЙН 24/7 | До следующего автоподнятия лотов: ~{remaining} мин.")
 
-                    # Проверка общего времени воркера
                     if (time.time() - start_time) >= MAX_RUN_SECONDS:
                         break
 

@@ -2,9 +2,13 @@ name: FunPay 24/7 Immortal Cloud Relay
 
 on:
   schedule:
-    # Защитный таймер: каждые 4 часа проверяет, что эстафета активна
-    - cron: '0 */4 * * *'
+    # Страховочный таймер: каждые 30 минут проверяет живость
+    - cron: '*/30 * * * *'
   workflow_dispatch:
+
+concurrency:
+  group: funpay-autopilot-relay
+  cancel-in-progress: false
 
 permissions:
   actions: write
@@ -31,5 +35,5 @@ jobs:
       - name: Run 24/7 Immortal Bot Loop
         env:
           GOLDEN_KEY: ${{ secrets.GOLDEN_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: python runner.py
