@@ -1,15 +1,19 @@
-name: FunPay 24/7 Cloud Auto-Raise
+name: FunPay 24/7 Immortal Cloud Relay
 
 on:
   schedule:
-    # Запуск каждые 25 минут (в облаке GitHub круглосуточно)
-    - cron: '*/25 * * * *'
+    # Защитный таймер: каждые 4 часа проверяет, что эстафета активна
+    - cron: '0 */4 * * *'
   workflow_dispatch:
 
+permissions:
+  actions: write
+  contents: read
+
 jobs:
-  auto-raise:
+  immortal-worker:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 350
 
     steps:
       - name: Checkout code
@@ -24,7 +28,8 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run Auto-Raise
+      - name: Run 24/7 Immortal Bot Loop
         env:
           GOLDEN_KEY: ${{ secrets.GOLDEN_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python runner.py
