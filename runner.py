@@ -9,7 +9,14 @@ import requests
 from bs4 import BeautifulSoup
 from telethon import TelegramClient
 from telethon.sessions import StringSession
-from telethon.errors import FloodWaitError, ChatWriteForbiddenError, UserBannedInChannelError
+from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.errors import (
+    FloodWaitError,
+    ChatWriteForbiddenError,
+    UserBannedInChannelError,
+    UserAlreadyParticipantError,
+    ChannelPrivateError
+)
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -30,8 +37,6 @@ if not GOLDEN_KEY:
     sys.exit(1)
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
-
-# Максимальное время работы воркера перед передачей эстафеты (4 часа 45 минут)
 MAX_RUN_SECONDS = 4 * 3600 + 45 * 60
 
 def log(msg):
@@ -39,7 +44,6 @@ def log(msg):
     print(f"[{now}] {msg}", flush=True)
 
 def trigger_next_worker():
-    """Запуск следующего воркера через GitHub API для бесконечной эстафеты"""
     if not GITHUB_TOKEN:
         log("GITHUB_TOKEN отсутствует, полагаемся на cron.")
         return
@@ -64,7 +68,7 @@ def trigger_next_worker():
 # ==============================================================
 async def tg_poster_loop():
     if not TG_SESSION:
-        log("[TG] Секрет TG_SESSION не задан. Автопостинг в Telegram пропущен.")
+        log("[TG] Секрет TG_SESSION не задан.")
         return
 
     log("[TG] Запуск модуля автопостинга рекламы в Telegram...")
@@ -72,7 +76,7 @@ async def tg_poster_loop():
         client = TelegramClient(StringSession(TG_SESSION), TG_API_ID, TG_API_HASH)
         await client.connect()
         me = await client.get_me()
-        log(f"[TG] Успешная авторизация! Аккаунт: {me.first_name} (@{me.username or 'no_user'})")
+        log(f"[TG] Успешная авторизация! Аккаунт: {me.first_name} (@{me.username or 'no_user'}, ID: {me.id})")
     except Exception as e:
         log(f"[TG] Ошибка авторизации в Telegram: {e}")
         return
@@ -107,7 +111,7 @@ async def tg_poster_loop():
         except Exception:
             pass
 
-    log(f"[TG] Загружено целевых чатов для пиара: {len(chats)}")
+    log(f"[TG] Загружено целевых чатов: {len(chats)}")
 
     while True:
         log("[TG] --- СТАРТ РАУНДА РАССЫЛКИ В ЧАТЫ ---")
@@ -115,21 +119,34 @@ async def tg_poster_loop():
         for idx, chat in enumerate(chats, 1):
             text = random.choice(messages)
             try:
-                await client.send_message(chat, text)
-                sent += 1
-                log(f"[TG] [{idx}/{len(chats)}] ✔ Реклама отправлена в {chat}")
-            except FloodWaitError as e:
-                log(f"[TG] ⏳ FloodWait от Telegram: ждем {e.seconds} сек...")
-                await asyncio.sleep(e.seconds + 5)
-            except (ChatWriteForbiddenError, UserBannedInChannelError):
-                log(f"[TG] [{idx}/{len(chats)}] ✖ В чате {chat} запрещено писать.")
-            except Exception as e:
-                log(f"[TG] [{idx}/{len(chats)}] Ошибка {chat}: {e}")
+                # 1. Получаем сущность чата
+                entity = await client.get_entity(chat)
+                
+                # 2. Вступаем в чат, если еще не вступили
+                try:
+                    await client(JoinChannelRequest(entity))
+                except (UserAlreadyParticipantError, ChannelPrivateError):
+                    pass
+                except Exception as e:
+                    log(f"[TG] Инфо вступления в {chat}: {e}")
 
-            # Задержка 25-45 сек между чатами для защиты от спамблока
+                # 3. Отправляем сообщение
+                await client.send_message(entity, text)
+                sent += 1
+                log(f"[TG] [{idx}/{len(chats)}] ✔ Реклама успешно отправлена в {chat}")
+            except FloodWaitError as e:
+                log(f"[TG] ⏳ FloodWait от Telegram: пауза {e.seconds} сек...")
+                await asyncio.sleep(e.seconds + 5)
+            except UserBannedInChannelError:
+                log(f"[TG] [{idx}/{len(chats)}] ✖ Аккаунт ограничен (мутом/спамблоком) в чате {chat}.")
+            except ChatWriteForbiddenError:
+                log(f"[TG] [{idx}/{len(chats)}] ✖ В чате {chat} запрещены сообщения участников.")
+            except Exception as e:
+                log(f"[TG] [{idx}/{len(chats)}] Ошибка в {chat}: {type(e).__name__} ({e})")
+
             await asyncio.sleep(random.uniform(25, 45))
 
-        log(f"[TG] Раунд завершен. Отправлено постов: {sent}. Пауза 45 минут перед следующим раундом...")
+        log(f"[TG] Раунд завершен. Успешно отправлено: {sent}. Пауза 45 мин...")
         await asyncio.sleep(45 * 60)
 
 # ==============================================================
@@ -316,7 +333,6 @@ async def main():
     log("=== ЗАПУСК ОБЛАЧНОГО КОМПЛЕКСА 24/7: FUNPAY AUTO-RAISE + TELEGRAM AUTO-POSTER ===")
     funpay_bot = ImmortalFunPayBot()
     
-    # Запускаем оба процесса параллельно в одном облачном контейнере
     await asyncio.gather(
         funpay_bot.run_loop(),
         tg_poster_loop()
