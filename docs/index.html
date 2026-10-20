@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minecraft Сборки, Конфиги DeluxeMenus и Игровые Товары — Магазин Alyalove на FunPay</title>
+    <meta name="description" content="Официальная витрина товаров Alyalove на FunPay. Готовые сборки Minecraft (BoxPvP, Анархия 1.20), мега-пак DeluxeMenus (12 меню), конфиги и оптимизации с мгновенной автовыдачей 24/7.">
+    <meta name="keywords" content="funpay, minecraft, deluxemenus, сборка сервера, купить сборку майнкрафт, конфиги, boxpvp, анархия, cs2, roblox">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0b0f19;
+            --card-bg: rgba(22, 30, 49, 0.75);
+            --border: rgba(255, 255, 255, 0.08);
+            --primary: #10b981;
+            --primary-glow: rgba(16, 185, 129, 0.35);
+            --accent: #6366f1;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif; }
+        body { background-color: var(--bg); color: var(--text-main); overflow-x: hidden; line-height: 1.6; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+        /* Header */
+        header { padding: 24px 0; border-bottom: 1px solid var(--border); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 100; background: rgba(11, 15, 25, 0.8); }
+        .nav-inner { display: flex; justify-content: space-between; align-items: center; }
+        .logo { font-size: 20px; font-weight: 800; display: flex; align-items: center; gap: 8px; color: #fff; text-decoration: none; }
+        .logo-dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; box-shadow: 0 0 12px var(--primary); }
+        .btn { display: inline-flex; align-items: center; gap: 8px; background: var(--primary); color: #fff; padding: 12px 24px; border-radius: 10px; font-weight: 700; text-decoration: none; transition: 0.2s all; box-shadow: 0 0 20px var(--primary-glow); }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 0 30px rgba(16, 185, 129, 0.6); }
+
+        /* Hero */
+        .hero { padding: 80px 0 60px; text-align: center; position: relative; }
+        .badge-live { display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); color: var(--primary); padding: 6px 16px; border-radius: 30px; font-size: 13px; font-weight: 700; margin-bottom: 24px; }
+        .badge-pulse { width: 8px; height: 8px; background: var(--primary); border-radius: 50%; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { transform: scale(0.95); opacity: 0.8; } 50% { transform: scale(1.4); opacity: 1; } 100% { transform: scale(0.95); opacity: 0.8; } }
+        .hero h1 { font-size: clamp(32px, 5vw, 56px); font-weight: 800; letter-spacing: -1px; margin-bottom: 20px; line-height: 1.15; }
+        .gradient-text { background: linear-gradient(135deg, #fff 30%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: var(--text-muted); font-size: 18px; max-width: 650px; margin: 0 auto 36px; }
+
+        /* Stats */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 80px; }
+        .stat-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; padding: 24px; text-align: center; }
+        .stat-val { font-size: 32px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+        .stat-lbl { color: var(--text-muted); font-size: 14px; }
+
+        /* Products Section */
+        .section-title { font-size: 28px; font-weight: 800; margin-bottom: 32px; text-align: center; }
+        .products-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px; margin-bottom: 80px; }
+        .product-card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 20px; padding: 32px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; transition: 0.3s; }
+        .product-card:hover { border-color: rgba(99, 102, 241, 0.4); transform: translateY(-4px); }
+        .product-tag { align-self: flex-start; padding: 4px 12px; border-radius: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; margin-bottom: 16px; }
+        .tag-hot { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+        .tag-suite { background: rgba(99, 102, 241, 0.15); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); }
+        .tag-hit { background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+        .product-card h3 { font-size: 22px; font-weight: 800; margin-bottom: 12px; }
+        .product-card p { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+        .product-features { list-style: none; margin-bottom: 32px; }
+        .product-features li { display: flex; align-items: center; gap: 8px; color: #cbd5e1; font-size: 14px; margin-bottom: 8px; }
+        .check-icon { color: var(--primary); font-weight: bold; }
+        .price-row { display: flex; justify-content: space-between; align-items: center; padding-top: 20px; border-top: 1px solid var(--border); }
+        .price { font-size: 24px; font-weight: 800; color: #fff; }
+        .btn-sm { padding: 10px 20px; font-size: 14px; }
+
+        /* Trust banner */
+        .trust-box { background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(16, 185, 129, 0.1) 100%); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 24px; padding: 48px; text-align: center; margin-bottom: 80px; }
+        .trust-box h2 { font-size: 28px; font-weight: 800; margin-bottom: 12px; }
+        .trust-box p { color: var(--text-muted); max-width: 600px; margin: 0 auto 28px; }
+
+        /* Footer */
+        footer { padding: 40px 0; border-top: 1px solid var(--border); text-align: center; color: var(--text-muted); font-size: 14px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="container nav-inner">
+            <a href="https://funpay.com/users/21235840/" target="_blank" class="logo">
+                <span class="logo-dot"></span>
+                <span>Alyalove Shop</span>
+            </a>
+            <a href="https://funpay.com/users/21235840/" target="_blank" class="btn btn-sm">Каталог FunPay ➔</a>
+        </div>
+    </header>
+
+    <main class="container">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="badge-live">
+                <span class="badge-pulse"></span>
+                АВТОВЫДАЧА 24/7 | ГАРАНТИЯ БЕЗОПАСНОСТИ FUNPAY
+            </div>
+            <h1>Премиум сборки, меню и конфиги <br><span class="gradient-text">для ваших серверов и игр</span></h1>
+            <p>Готовые цифровые товары без бэкдоров с мгновенным получением сразу после оплаты через гаранта биржи FunPay.</p>
+            <a href="https://funpay.com/users/21235840/" target="_blank" class="btn">Перейти в магазин на FunPay</a>
+        </section>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-val">95+</div>
+                <div class="stat-lbl">Активных цифровых товаров</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">5.0 ★</div>
+                <div class="stat-lbl">Рейтинг надежного продавца</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">⚡ Мгновенно</div>
+                <div class="stat-lbl">Автовыдача товара ботом</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-val">100%</div>
+                <div class="stat-lbl">Безопасность сделки через биржу</div>
+            </div>
+        </div>
+
+        <!-- Featured Products -->
+        <h2 class="section-title">Популярные продукты Minecraft</h2>
+        <div class="products-grid">
+
+            <!-- Card 1 -->
+            <div class="product-card">
+                <div>
+                    <span class="product-tag tag-suite">Мега-пак 12 в 1</span>
+                    <h3>DeluxeMenus ULTRA GUI Suite</h3>
+                    <p>Полный комплект современных интерфейсов для серверов любого режима (1.16.5–1.20+). Сочные HEX-градиенты и звуки.</p>
+                    <ul class="product-features">
+                        <li><span class="check-icon">✓</span> 12 готовых меню: /menu, /donate, /buyer, /profile</li>
+                        <li><span class="check-icon">✓</span> Поддержка PlaceholderAPI и валюты</li>
+                        <li><span class="check-icon">✓</span> Установка в папку за 2 минуты</li>
+                    </ul>
+                </div>
+                <div class="price-row">
+                    <span class="price">450 ₽</span>
+                    <a href="https://funpay.com/users/21235840/" target="_blank" class="btn btn-sm">Купить</a>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="product-card">
+                <div>
+                    <span class="product-tag tag-hit">Сборка под ключ</span>
+                    <h3>Сборка сервера BoxPvP 1.16–1.20+</h3>
+                    <p>Готовый сервер популярного режима. Не требует мощного хостинга, выдает стабильные 20 TPS при любом онлайне.</p>
+                    <ul class="product-features">
+                        <li><span class="check-icon">✓</span> 15 уровней авто-шахт с таймерами</li>
+                        <li><span class="check-icon">✓</span> 3 босс-арены и обменники жителей</li>
+                        <li><span class="check-icon">✓</span> 5 донат-групп LuckPerms и кейсы</li>
+                    </ul>
+                </div>
+                <div class="price-row">
+                    <span class="price">790 ₽</span>
+                    <a href="https://funpay.com/users/21235840/" target="_blank" class="btn btn-sm">Купить</a>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="product-card">
+                <div>
+                    <span class="product-tag tag-hot">ТОП режим СНГ</span>
+                    <h3>Сборка Анархии 1.20.x (FT / RW Стиль)</h3>
+                    <p>Проект по канонам ReallyWorld и FunTime: ожесточенные замесы, кланы, мистические сундуки и кастомные артефакты.</p>
+                    <ul class="product-features">
+                        <li><span class="check-icon">✓</span> Автоматические ивенты с аирдропами</li>
+                        <li><span class="check-icon">✓</span> Кастомные сферы, талисманы и трапки</li>
+                        <li><span class="check-icon">✓</span> Аукцион (/ah) и динамический скупщик</li>
+                    </ul>
+                </div>
+                <div class="price-row">
+                    <span class="price">1 190 ₽</span>
+                    <a href="https://funpay.com/users/21235840/" target="_blank" class="btn btn-sm">Купить</a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Trust Callout -->
+        <section class="trust-box">
+            <h2>Как происходит покупка?</h2>
+            <p>Вы оплачиваете товар на официальной бирже FunPay. Деньги замораживаются сайтом. Вы моментально получаете ссылку на скачивание архива с инструкцией. Только после вашей проверки вы подтверждаете заказ.</p>
+            <a href="https://funpay.com/users/21235840/" target="_blank" class="btn">Открыть профиль продавца на FunPay</a>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2026 Alyalove Shop. Все сделки проводятся через систему гаранта FunPay.</p>
+        </div>
+    </footer>
+
+</body>
+</html>
