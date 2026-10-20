@@ -1,8 +1,8 @@
-name: FunPay 24/7 Immortal Cloud Relay
+name: FunPay 24/7 Immortal Cloud Relay & Telegram Poster
 
 on:
   schedule:
-    # Страховочный таймер: каждые 30 минут проверяет живость
+    # Страховочный таймер
     - cron: '*/30 * * * *'
   workflow_dispatch:
 
@@ -32,8 +32,9 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run 24/7 Immortal Bot Loop
+      - name: Run 24/7 Immortal FunPay & Telegram Bot
         env:
           GOLDEN_KEY: ${{ secrets.GOLDEN_KEY }}
           GITHUB_TOKEN: ${{ secrets.GH_PAT || secrets.GITHUB_TOKEN }}
+          TG_SESSION: ${{ secrets.TG_SESSION }}
         run: python runner.py

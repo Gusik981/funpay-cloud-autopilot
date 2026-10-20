@@ -4,14 +4,22 @@ import time
 import json
 import random
 import datetime
+import asyncio
 import requests
 from bs4 import BeautifulSoup
+from telethon import TelegramClient
+from telethon.sessions import StringSession
+from telethon.errors import FloodWaitError, ChatWriteForbiddenError, UserBannedInChannelError
 
 sys.stdout.reconfigure(encoding='utf-8')
 
 GOLDEN_KEY = os.environ.get('GOLDEN_KEY')
 GITHUB_TOKEN = os.environ.get('GITHUB_TOKEN')
+TG_SESSION = os.environ.get('TG_SESSION')
 REPO = os.environ.get('GITHUB_REPOSITORY', 'Gusik981/funpay-cloud-autopilot')
+
+TG_API_ID = 2040
+TG_API_HASH = 'b18441a1ff607e10a989891a5462e627'
 
 if not GOLDEN_KEY and os.path.exists('config.json'):
     with open('config.json', 'r', encoding='utf-8') as f:
@@ -23,7 +31,7 @@ if not GOLDEN_KEY:
 
 USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36'
 
-# 4 часа 45 минут
+# Максимальное время работы воркера перед передачей эстафеты (4 часа 45 минут)
 MAX_RUN_SECONDS = 4 * 3600 + 45 * 60
 
 def log(msg):
@@ -47,10 +55,86 @@ def trigger_next_worker():
         if res.status_code == 204:
             log("✔ Следующий облачный воркер успешно запущен в эстафете 24/7!")
         else:
-            log(f"Статус вызова dispatch: {res.status_code} ({res.text[:100]})")
+            log(f"Статус вызова dispatch: {res.status_code}")
     except Exception as e:
         log(f"Ошибка передачи эстафеты: {e}")
 
+# ==============================================================
+#                      TELEGRAM AUTO-POSTER
+# ==============================================================
+async def tg_poster_loop():
+    if not TG_SESSION:
+        log("[TG] Секрет TG_SESSION не задан. Автопостинг в Telegram пропущен.")
+        return
+
+    log("[TG] Запуск модуля автопостинга рекламы в Telegram...")
+    try:
+        client = TelegramClient(StringSession(TG_SESSION), TG_API_ID, TG_API_HASH)
+        await client.connect()
+        me = await client.get_me()
+        log(f"[TG] Успешная авторизация! Аккаунт: {me.first_name} (@{me.username or 'no_user'})")
+    except Exception as e:
+        log(f"[TG] Ошибка авторизации в Telegram: {e}")
+        return
+
+    messages = [
+        "⚡ Хочешь, чтобы твой сервер Minecraft выглядел на миллион?\n\n🔥 В наличии готовый мега-пак **DeluxeMenus ULTRA GUI (12 в 1)**:\n• Красивые HEX/RGB градиенты и звуки кликов\n• Настроенные /menu, /donate, /profile, /buyer, /warps, /kits, /rewards\n• Установка за 2 минуты (/dm reload)\n\n🛡 Безопасная покупка с автовыдачей 24/7:\n👉 https://funpay.com/users/21235840/",
+        "👑 Прокачай свой Minecraft проект топовыми меню!\n\n💎 Пак **DeluxeMenus 12 в 1** в стиле ReallyWorld & FunTime:\n✔️ /profile с выводом баланса, пинга и часов\n✔️ /donate на 5 привилегий с описанием\n✔️ /buyer (скупщик руды, мобов и фермы)\n✔️ /warps, /kits, /cases, /pass, /rules\n\n⚡ Мгновенная выдача сразу после оплаты:\n👉 https://funpay.com/users/21235840/",
+        "🚀 Сборки серверов и готовые конфиги Minecraft!\n\nВ магазине на FunPay доступно:\n• Пак интерфейсов DeluxeMenus (12 меню под ключ)\n• Сборка BoxPvP 1.16-1.20+ (15 шахт, боссы)\n• Сборка Анархии (мистики, сферы, талисманы)\n• 90+ игровых конфигов и оптимизаций от 1 рубля!\n\nЗабирай с автовыдачей 24/7:\n👉 https://funpay.com/users/21235840/"
+    ]
+    if os.path.exists('messages.json'):
+        try:
+            with open('messages.json', 'r', encoding='utf-8') as f:
+                messages = json.load(f)
+        except Exception:
+            pass
+
+    chats = [
+        '@piar_chat_vzaimno',
+        '@reklama_piar_chat',
+        '@minecraft_chat_ru',
+        '@servers_minecraft_piar',
+        '@baraholka_minecraft',
+        '@piar_besplatno_chat',
+        '@chat_vzaimnogo_piara'
+    ]
+    if os.path.exists('chats.txt'):
+        try:
+            with open('chats.txt', 'r', encoding='utf-8') as f:
+                loaded = [l.strip() for l in f if l.strip() and not l.startswith('#')]
+                if loaded:
+                    chats = loaded
+        except Exception:
+            pass
+
+    log(f"[TG] Загружено целевых чатов для пиара: {len(chats)}")
+
+    while True:
+        log("[TG] --- СТАРТ РАУНДА РАССЫЛКИ В ЧАТЫ ---")
+        sent = 0
+        for idx, chat in enumerate(chats, 1):
+            text = random.choice(messages)
+            try:
+                await client.send_message(chat, text)
+                sent += 1
+                log(f"[TG] [{idx}/{len(chats)}] ✔ Реклама отправлена в {chat}")
+            except FloodWaitError as e:
+                log(f"[TG] ⏳ FloodWait от Telegram: ждем {e.seconds} сек...")
+                await asyncio.sleep(e.seconds + 5)
+            except (ChatWriteForbiddenError, UserBannedInChannelError):
+                log(f"[TG] [{idx}/{len(chats)}] ✖ В чате {chat} запрещено писать.")
+            except Exception as e:
+                log(f"[TG] [{idx}/{len(chats)}] Ошибка {chat}: {e}")
+
+            # Задержка 25-45 сек между чатами для защиты от спамблока
+            await asyncio.sleep(random.uniform(25, 45))
+
+        log(f"[TG] Раунд завершен. Отправлено постов: {sent}. Пауза 45 минут перед следующим раундом...")
+        await asyncio.sleep(45 * 60)
+
+# ==============================================================
+#                      FUNPAY AUTO-RAISE BOT
+# ==============================================================
 class ImmortalFunPayBot:
     def __init__(self):
         self.session = requests.Session()
@@ -69,7 +153,7 @@ class ImmortalFunPayBot:
         self.last_categories_reload = 0
 
     def authenticate(self):
-        log("Авторизация на FunPay...")
+        log("[FunPay] Авторизация на FunPay...")
         try:
             r = self.session.get('https://funpay.com/', headers={'User-Agent': USER_AGENT}, timeout=20)
             soup = BeautifulSoup(r.text, 'html.parser')
@@ -82,15 +166,15 @@ class ImmortalFunPayBot:
                 self.user_id = app_data.get('userId')
                 
             if not user_elem:
-                log("ОШИБКА: Не удалось войти по golden_key. Возможно, ключ устарел.")
+                log("[FunPay] ОШИБКА: Не удалось войти по golden_key.")
                 return False
                 
             self.username = user_elem.text.strip()
             balance = balance_elem.text.strip() if balance_elem else '0 ₽'
-            log(f"Вход выполнен: {self.username} (ID: {self.user_id}) | Баланс: {balance}")
+            log(f"[FunPay] Вход выполнен: {self.username} (ID: {self.user_id}) | Баланс: {balance}")
             return True
         except Exception as e:
-            log(f"Сетевая ошибка при авторизации: {e}")
+            log(f"[FunPay] Сетевая ошибка при авторизации: {e}")
             return False
 
     def load_categories(self):
@@ -112,18 +196,17 @@ class ImmortalFunPayBot:
             
             self.categories = cats
             self.last_categories_reload = time.time()
-            log(f"Актуализировано категорий с товарами: {len(self.categories)}")
+            log(f"[FunPay] Категорий на аккаунте: {len(self.categories)}")
             return cats
         except Exception as e:
-            log(f"Ошибка загрузки категорий: {e}")
+            log(f"[FunPay] Ошибка загрузки категорий: {e}")
             return self.categories
 
     def raise_all_lots(self):
-        # Перезагружаем категории раз в час (вдруг продавец добавил новый товар)
         if (time.time() - self.last_categories_reload) > 3600 or not self.categories:
             self.load_categories()
 
-        log("--- СТАРТ ЦИКЛА ПОДНЯТИЯ ЛОТОВ ---")
+        log("[FunPay] --- СТАРТ ЦИКЛА ПОДНЯТИЯ ЛОТОВ ---")
         min_wait = 3600
         success_count = 0
         cooldown_count = 0
@@ -164,31 +247,29 @@ class ImmortalFunPayBot:
                     try:
                         data = res.json()
                         if not data.get('error'):
-                            log(f"[{idx}/{len(self.categories)}] ✔ УСПЕШНО ПОДНЯТО: {cat['name']}")
+                            log(f"[FunPay] [{idx}/{len(self.categories)}] ✔ ПОДНЯТО: {cat['name']}")
                             success_count += 1
                         else:
                             wait_sec = data.get('wait', 7200)
                             if wait_sec < min_wait and wait_sec > 0:
                                 min_wait = wait_sec
-                            log(f"[{idx}/{len(self.categories)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
+                            log(f"[FunPay] [{idx}/{len(self.categories)}] ⏳ {cat['name']}: {data.get('msg')} ({wait_sec // 60} мин)")
                             cooldown_count += 1
                     except Exception:
-                        log(f"[{idx}/{len(self.categories)}] Ответ без JSON: {res.text[:60]}")
+                        pass
                 elif res.status_code == 428:
-                    log(f"[{idx}/{len(self.categories)}] ⏳ {cat['name']}: Кулдаун активен (428)")
+                    log(f"[FunPay] [{idx}/{len(self.categories)}] ⏳ {cat['name']}: Кулдаун активен (428)")
                     cooldown_count += 1
                 elif res.status_code == 401:
-                    log(f"[{idx}/{len(self.categories)}] Сессия истекла (401), переавторизация...")
+                    log(f"[FunPay] Сессия 401, переавторизация...")
                     self.authenticate()
-                else:
-                    log(f"[{idx}/{len(self.categories)}] Статус {res.status_code} для {cat['name']}")
             except Exception as e:
-                log(f"[{idx}/{len(self.categories)}] Ошибка {cat['name']}: {e}")
+                log(f"[FunPay] Ошибка {cat['name']}: {e}")
             
-            time.sleep(random.uniform(0.8, 1.4))
+            time.sleep(random.uniform(0.7, 1.3))
 
         next_wait = max(min_wait, 120)
-        log(f"ИТОГ КРУГА: Поднято: {success_count} | Ожидают: {cooldown_count}. Следующий круг через ~{next_wait // 60} мин.")
+        log(f"[FunPay] ИТОГ: Поднято: {success_count} | Ожидают: {cooldown_count}. След. круг через ~{next_wait // 60} мин.")
         return next_wait
 
     def ping_online(self):
@@ -197,46 +278,49 @@ class ImmortalFunPayBot:
         except Exception:
             pass
 
-    def run(self):
-        log("=== БОТ ЗАПУЩЕН В БЕСКОНЕЧНОМ ОБЛАЧНОМ РЕЖИМЕ 24/7 ===")
+    async def run_loop(self):
         start_time = time.time()
-
         while not self.authenticate():
-            log("Повтор авторизации через 30 сек...")
-            time.sleep(30)
+            await asyncio.sleep(30)
 
         self.load_categories()
 
         while True:
-            # Проверка передачи эстафеты (4 часа 45 минут)
             elapsed_total = time.time() - start_time
             if elapsed_total >= MAX_RUN_SECONDS:
                 log("Воркер отработал 4ч 45м. Передаем эстафету следующему воркеру...")
                 trigger_next_worker()
-                time.sleep(40)
+                await asyncio.sleep(40)
                 log("Завершение текущей смены (следующий воркер подхвачен).")
                 break
 
             try:
-                wait_time = self.raise_all_lots()
+                wait_time = await asyncio.to_thread(self.raise_all_lots)
                 
-                # Цикл ожидания с пингом каждые 90 секунд (вечный Онлайн)
                 elapsed = 0
                 while elapsed < wait_time:
                     sleep_chunk = min(90, wait_time - elapsed)
-                    time.sleep(sleep_chunk)
+                    await asyncio.sleep(sleep_chunk)
                     elapsed += sleep_chunk
-                    self.ping_online()
+                    await asyncio.to_thread(self.ping_online)
                     remaining = (wait_time - elapsed) // 60
-                    log(f"Статус: ОНЛАЙН 24/7 | До следующего автоподнятия лотов: ~{remaining} мин.")
+                    log(f"[FunPay] Статус: ОНЛАЙН 24/7 | До автоподнятия лотов: ~{remaining} мин.")
 
                     if (time.time() - start_time) >= MAX_RUN_SECONDS:
                         break
-
             except Exception as e:
-                log(f"Сбой в цикле: {e}. Перезапуск через 30 секунд...")
-                time.sleep(30)
+                log(f"[FunPay] Сбой: {e}. Перезапуск через 30 сек...")
+                await asyncio.sleep(30)
+
+async def main():
+    log("=== ЗАПУСК ОБЛАЧНОГО КОМПЛЕКСА 24/7: FUNPAY AUTO-RAISE + TELEGRAM AUTO-POSTER ===")
+    funpay_bot = ImmortalFunPayBot()
+    
+    # Запускаем оба процесса параллельно в одном облачном контейнере
+    await asyncio.gather(
+        funpay_bot.run_loop(),
+        tg_poster_loop()
+    )
 
 if __name__ == '__main__':
-    bot = ImmortalFunPayBot()
-    bot.run()
+    asyncio.run(main())
